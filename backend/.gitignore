@@ -5,3 +5,5 @@ ai-venv
 
 __pycache__/
 *.pyc
+
+uploads/
