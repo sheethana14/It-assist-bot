@@ -4,6 +4,7 @@ import shutil
 import uuid 
 
 from app.services.pdf_loader import extract_text_from_pdf
+from app.services.chunker import chunk_text
 
 router = APIRouter()
 
@@ -35,10 +36,16 @@ async def upload_pdf(file: UploadFile =File(...)):
         extract_text = extract_text_from_pdf(file_path)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"failed to extract: {str(e)}")
+    
+    chunks = chunk_text(extract_text)
 
     return{
         "message": "PDF file uploaded sucessfully",
         "filename": unique_filename,
-        "text_preview": extract_text[:500]
+        "text_preview": extract_text[:500],
+        "total_chunks": len(chunks),
+        "sample_chunk": chunks[0] if chunks else "No content"
     }
+    
+    
 
