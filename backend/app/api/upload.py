@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, UploadFile, File, HTTPException
 import os
 import shutil
@@ -5,6 +6,8 @@ import uuid
 
 from app.services.pdf_loader import extract_text_from_pdf
 from app.services.chunker import chunk_text
+from app.services.embeddings import generate_embeddings
+from app.services.vector_store import add_to_index
 
 router = APIRouter()
 
@@ -38,14 +41,21 @@ async def upload_pdf(file: UploadFile =File(...)):
         raise HTTPException(status_code=500, detail=f"failed to extract: {str(e)}")
     
     chunks = chunk_text(extract_text)
+    embeddings = generate_embeddings(chunks)
+    add_to_index(embeddings, chunks)
 
     return{
         "message": "PDF file uploaded sucessfully",
         "filename": unique_filename,
         "text_preview": extract_text[:500],
         "total_chunks": len(chunks),
-        "sample_chunk": chunks[0] if chunks else "No content"
+        "sample_chunk": chunks[0] if chunks else "No content",
+        "embeddings" : len(embeddings[0]) if embeddings else 0,
+        "index_size" : len(chunks)
+   
     }
+
+
     
     
 
