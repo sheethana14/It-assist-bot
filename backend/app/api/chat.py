@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from app.services.embeddings import generate_embeddings
 from app.services.vector_store import search_index
+from app.services.llm import generate_answer
 
 router = APIRouter()
 
@@ -33,3 +34,24 @@ def chat_endpoint(request: ChatRequest):
         question=request.question,
         retrieved_chunks=results
 )
+
+@router.post("/chat")
+def Chat_endpoint(request: ChatRequest):
+    if not request.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+    query_embedding =generate_embeddings([request.question])[0]
+
+    retrieved_chunks =search_index(query_embedding, top_k=request.top_k)
+
+    if not retrieved_chunks:
+        return{
+            "question": request.question,
+            "answer": "NO relevent information found in document."
+        }
+    
+    answer = generate_answer(request.question, retrieved_chunks)
+
+    return{
+        "question": request.question,
+        "answer": answer
+    }
