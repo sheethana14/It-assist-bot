@@ -16,8 +16,11 @@ function UploadPage() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
+    // const formData = new FormData();
+    // formData.append("file", file);
+       for (let i = 0; i < fileList.length; i++) {
+  formData.append("files", fileList[i]);
+}   
 
     try {
       setLoading(true);

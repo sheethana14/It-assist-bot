@@ -2,61 +2,99 @@ import { useState } from "react";
 import { api } from "../services/api";
 
 function ChatPage() {
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [topK, setTopK] = useState(3);
 
-  const handleAsk = async () => {
-    if (!question.trim()) return;
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const newMessages = [...messages, { role: "user", content: input }];
+    setMessages(newMessages);
+    setInput("");
+    setLoading(true);
 
     try {
-      setLoading(true);
-      setAnswer("");
-
       const response = await api.post("/chat", {
-        question: question,
-        top_k: 3,
+        question: input,
+        top_k: topK,
+        history: messages
+          .filter(m => m.role === "assistant")
+          .map((m, i) => ({
+            question: messages[i * 2]?.content,
+            answer: m.content
+          }))
       });
 
-      setAnswer(response.data.answer);
-    } catch (error) {
-      console.error(error);
-      setAnswer("Something went wrong.");
+      setMessages([
+        ...newMessages,
+        { role: "assistant", content: response.data.answer }
+      ]);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "40px", maxWidth: "600px" }}>
-      <h2>Ask IT Assistant</h2>
+    <div style={{ display: "flex", height: "100vh" }}>
+      
+      {/* Sidebar */}
+      <div style={{
+        width: "250px",
+        background: "#1e1e1e",
+        color: "white",
+        padding: "20px"
+      }}>
+        <h3>Settings</h3>
+        <label>Top K:</label>
+        <input
+          type="number"
+          value={topK}
+          onChange={(e) => setTopK(Number(e.target.value))}
+        />
+      </div>
 
-      <textarea
-        rows="4"
-        style={{ width: "100%", padding: "10px" }}
-        placeholder="Ask your IT question..."
-        value={question}
-        onChange={(e) => setQuestion(e.target.value)}
-      />
-
-      <br /><br />
-
-      <button onClick={handleAsk} disabled={loading}>
-        {loading ? "Thinking..." : "Ask"}
-      </button>
-
-      <br /><br />
-
-      {answer && (
-        <div style={{
-          background: "#f5f5f5",
-          padding: "15px",
-          borderRadius: "8px"
-        }}>
-          <strong>Answer:</strong>
-          <p>{answer}</p>
+      {/* Chat Area */}
+      <div style={{ flex: 1, padding: "20px", display: "flex", flexDirection: "column" }}>
+        
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {messages.map((msg, index) => (
+            <div
+              key={index}
+              style={{
+                textAlign: msg.role === "user" ? "right" : "left",
+                marginBottom: "15px"
+              }}
+            >
+              <div style={{
+                display: "inline-block",
+                padding: "10px",
+                borderRadius: "10px",
+                background: msg.role === "user" ? "#007bff" : "#e5e5e5",
+                color: msg.role === "user" ? "white" : "black",
+                maxWidth: "60%"
+              }}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {loading && <p>Thinking...</p>}
         </div>
-      )}
+
+        <div style={{ display: "flex", marginTop: "10px" }}>
+          <input
+            style={{ flex: 1, padding: "10px" }}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask something..."
+          />
+          <button onClick={handleSend}>Send</button>
+        </div>
+
+      </div>
     </div>
   );
 }
