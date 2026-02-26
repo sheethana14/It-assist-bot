@@ -1,35 +1,42 @@
-from openai import OpenAI
+from urllib import response
+
+from openai import BaseModel, OpenAI
+from prompt_toolkit import prompt
 from app.core.config import settings
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-def generate_answer(question: str, context_chunks: list[str]) -> str:
-    """
-    Generate an answer useing retrieved context.
-    
-    """
-    context_text = "\n\n".join(context_chunks)
-    prompt = f"""
+class ChatRequest(BaseModel):
+    question: str
+    top_k: int = 3
+    history: list = []
+
+def generate_answer(question, context_chunks, history=None) :
+   history_text =""
+   if history:
+       for h in history:
+          history_text += f"User: {h['question']}\nAssistant: {h['answer']}\n"
+
+       context_text = "\n\n".join(context_chunks)
+   
+   prompt = f"""
 You are an internal IT assistant.
 
-Answer the question ONLY using the provided context.
-If the answer is not found in the context, say:
-"I could not find this information in the provided documents.
+Conversation History:
+{history_text}
 
+Context:
+{context_text}
 
-context : {context_text}
+Current Question:
+{question}
 
-question : {question}
-
-Answer :
+Answer clearly and based only on context.
 """
-    response = client.chat.completions.create(
-        model="gbt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a helpful IT Assistant"},
-            {"role": "user", "content" : prompt}
-        ],
-        temperature= 0
-    )
 
-    return response.choices[0].message.content.strip()
+   response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0
+    )
+   return response.choices[0].message.content.strip()
