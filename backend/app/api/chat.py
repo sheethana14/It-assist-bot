@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException 
-from httpx import request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import List
 
 from app.services.embeddings import generate_embeddings
 from app.services.vector_store import search_index
@@ -8,50 +8,41 @@ from app.services.llm import generate_answer
 
 router = APIRouter()
 
+
 class ChatRequest(BaseModel):
     question: str
-    top_k : int = 5
+    # top_k: int = 3
+    # history: List[dict] = []
+
 
 class ChatResponse(BaseModel):
     question: str
-    retrieved_chunks: list[str]
+    answer: str
 
-@router.post("/chat", response_model=ChatResponse)
-def chat_endpoint(request: ChatRequest):
-    """
-    Accept a user question, genrate embedding for the question,
-    performs a simmilarity search,
-    returns the most relevant chunks.
-"""
-    if not request.question.strip():
-       raise HTTPException(status_code=400, detail="question cannot be empty")
-
-
-    query_embedding =generate_embeddings([request.question])[0]
-
-    results = search_index(query_embedding, top_k=request.top_k)
-    return ChatResponse(
-        question=request.question,
-        retrieved_chunks=results
-)
 
 @router.post("/chat")
-def Chat_endpoint(request: ChatRequest):
-    if not request.question.strip():
-        raise HTTPException(status_code=400, detail="Question cannot be empty")
-    query_embedding =generate_embeddings([request.question])[0]
+async def chat_endpoint(request: ChatRequest):
+    """ 
+    Handle chat requests and generate responses based on uploaded documents.
+    """
+    try:
+        if not request.question.strip():
+            raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-    retrieved_chunks =search_index(query_embedding, top_k=request.top_k)
+        query_embedding = generate_embeddings([request.question])
+        query_embedding = query_embedding[0]
 
-    if not retrieved_chunks:
-        return{
-            "question": request.question,
-            "answer": "NO relevent information found in document."
+        retrieved_chunks = search_index(query_embedding, top_k=3)       
+       
+        if not retrieved_chunks:
+            return {
+                "response": "No relevant Information found in the iploaded documnets.",
+                "context": []      
+            }
+
+        return {
+            "response": "here is the answer to your question based on the uploaded the documents.",
+            "context": retrieved_chunks
         }
-    
-    answer = generate_answer(request.question, retrieved_chunks)
-
-    return{
-        "question": request.question,
-        "answer": answer
-    }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred while processing the chat request: {str(e)}")
